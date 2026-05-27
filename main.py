@@ -24,10 +24,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.recognizer.energy_threshold = 300
 
         self.is_listening = False
-        self.wake_words = ["hey loki", "loki"]
 
         self.initialize_ui()
         self.start_wake_word_loop()
+
+    def wake_word(self, text: str) -> bool:
+        text = text.lower().strip()
+        close_variants = [
+            "hey loki",
+            "loki",
+            "hey lucky",
+            "lucky",
+            "hello loki",
+            "hello lucky",
+            "hello kitty"
+        ]
+        return any(variant in text for variant in close_variants)
 
     def initialize_ui(self):
         self.set_status("Status: Loki is online")
@@ -78,10 +90,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 text = self.recognizer.recognize_google(audio, language="en-GB").lower().strip()
                 self.log_message(f'Heard: "{text}"')
 
-                if any(wake_word in text for wake_word in self.wake_words):
+                if self.wake_word(text):
                     self.log_message("Wake word detected")
                     self.set_status("Status: Wake word detected")
-                    self.listen_for_command()
+                    self.log_message("Loki: Listening for your command...")
+                    QTimer.singleShot(500, self.listen_for_command)
+                    return
                 else:
                     self.set_status("Status: Waiting for wake word...")
 
@@ -124,6 +138,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log_message(f"Runtime error: {e}")
             self.set_status("Status: Runtime error")
 
+        # after command, go back to wake-word listening
+        self.is_listening = False
+
     def open_chrome(self):
         possible_paths = [
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -141,6 +158,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def process_command(self, text):
         command = text.lower().strip()
+        self.log_message(f"Processed command: {command}")
 
         if "open chrome" in command:
             opened = self.open_chrome()
@@ -150,7 +168,6 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 self.log_message("Loki: I could not find Chrome on this computer")
                 self.set_status("Status: Chrome not found")
-
         else:
             self.log_message(f"Loki: I heard {command}")
             self.set_status("Status: Command processed")
